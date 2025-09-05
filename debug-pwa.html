@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تشخيص PWA - تطبيق الباركود</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            direction: rtl;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #667eea;
+            margin-bottom: 30px;
+        }
+        
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+        
+        .test-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .test-item:last-child {
+            border-bottom: none;
+        }
+        
+        .status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        
+        .status.pass {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status.fail {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status.warning {
+            background: #fff3cd;
+            color: #856404;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+        }
+        
+        .btn-success {
+            background: #28a745;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+        }
+        
+        .details {
+            background: #e9ecef;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        
+        .fix-suggestions {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+        }
+        
+        .fix-suggestions h4 {
+            color: #0c5460;
+            margin-bottom: 10px;
+        }
+        
+        .fix-suggestions ul {
+            margin: 0;
+            padding-right: 20px;
+        }
+        
+        .fix-suggestions li {
+            margin-bottom: 5px;
+            color: #0c5460;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 تشخيص PWA - تطبيق الباركود</h1>
+        
+        <div class="test-section">
+            <h3>📋 نتائج التشخيص</h3>
+            <div id="testResults"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🛠️ إجراءات الإصلاح</h3>
+            <button class="btn" onclick="runAllTests()">🔄 تشغيل جميع الاختبارات</button>
+            <button class="btn btn-secondary" onclick="checkManifest()">📄 فحص Manifest</button>
+            <button class="btn btn-secondary" onclick="checkServiceWorker()">⚙️ فحص Service Worker</button>
+            <button class="btn btn-secondary" onclick="checkIcons()">🖼️ فحص الأيقونات</button>
+            <button class="btn btn-success" onclick="installPWA()">📱 تثبيت PWA</button>
+            <button class="btn btn-danger" onclick="clearCache()">🗑️ مسح Cache</button>
+        </div>
+        
+        <div class="test-section">
+            <h3>📊 تفاصيل التشخيص</h3>
+            <div id="diagnosticDetails"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>💡 اقتراحات الإصلاح</h3>
+            <div id="fixSuggestions"></div>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+        
+        function addTestResult(name, status, details = '') {
+            testResults.push({ name, status, details });
+            updateDisplay();
+        }
+        
+        function updateDisplay() {
+            const resultsContainer = document.getElementById('testResults');
+            const detailsContainer = document.getElementById('diagnosticDetails');
+            const suggestionsContainer = document.getElementById('fixSuggestions');
+            
+            // عرض النتائج
+            resultsContainer.innerHTML = testResults.map(test => `
+                <div class="test-item">
+                    <span>${test.name}</span>
+                    <span class="status ${test.status}">${getStatusText(test.status)}</span>
+                </div>
+            `).join('');
+            
+            // عرض التفاصيل
+            detailsContainer.innerHTML = testResults.map(test => `
+                <div class="test-section">
+                    <h4>${test.name}</h4>
+                    <div class="details">${test.details}</div>
+                </div>
+            `).join('');
+            
+            // عرض الاقتراحات
+            suggestionsContainer.innerHTML = generateFixSuggestions();
+        }
+        
+        function getStatusText(status) {
+            switch(status) {
+                case 'pass': return '✅ نجح';
+                case 'fail': return '❌ فشل';
+                case 'warning': return '⚠️ تحذير';
+                default: return '❓ غير معروف';
+            }
+        }
+        
+        function generateFixSuggestions() {
+            const failedTests = testResults.filter(test => test.status === 'fail');
+            const warningTests = testResults.filter(test => test.status === 'warning');
+            
+            if (failedTests.length === 0 && warningTests.length === 0) {
+                return '<div class="fix-suggestions"><h4>🎉 ممتاز!</h4><p>جميع الاختبارات نجحت. PWA يجب أن يعمل بشكل صحيح.</p></div>';
+            }
+            
+            let suggestions = '<div class="fix-suggestions"><h4>🔧 اقتراحات الإصلاح:</h4><ul>';
+            
+            failedTests.forEach(test => {
+                switch(test.name) {
+                    case 'Manifest.json':
+                        suggestions += '<li>تأكد من وجود ملف manifest.json في المجلد الرئيسي</li>';
+                        suggestions += '<li>تحقق من صحة تنسيق JSON</li>';
+                        break;
+                    case 'Service Worker':
+                        suggestions += '<li>تأكد من وجود ملف sw.js في المجلد الرئيسي</li>';
+                        suggestions += '<li>تحقق من تسجيل Service Worker في HTML</li>';
+                        break;
+                    case 'الأيقونات':
+                        suggestions += '<li>أنشئ أيقونات التطبيق باستخدام create-icons.html</li>';
+                        suggestions += '<li>تأكد من وجود icon-192.png و icon-512.png</li>';
+                        break;
+                    case 'HTTPS':
+                        suggestions += '<li>استخدم GitHub Pages أو Vercel للحصول على HTTPS</li>';
+                        suggestions += '<li>أو استخدم localhost للتطوير</li>';
+                        break;
+                }
+            });
+            
+            suggestions += '</ul></div>';
+            return suggestions;
+        }
+        
+        function checkManifest() {
+            fetch('manifest.json')
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        throw new Error('Manifest not found');
+                    }
+                })
+                .then(manifest => {
+                    const requiredFields = ['name', 'short_name', 'start_url', 'display', 'icons'];
+                    const missingFields = requiredFields.filter(field => !manifest[field]);
+                    
+                    if (missingFields.length === 0) {
+                        addTestResult('Manifest.json', 'pass', JSON.stringify(manifest, null, 2));
+                    } else {
+                        addTestResult('Manifest.json', 'fail', `Missing fields: ${missingFields.join(', ')}\n\nManifest content:\n${JSON.stringify(manifest, null, 2)}`);
+                    }
+                })
+                .catch(error => {
+                    addTestResult('Manifest.json', 'fail', `Error loading manifest: ${error.message}`);
+                });
+        }
+        
+        function checkServiceWorker() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistration()
+                    .then(registration => {
+                        if (registration) {
+                            addTestResult('Service Worker', 'pass', `Service Worker is registered and active.\nScope: ${registration.scope}\nState: ${registration.active ? registration.active.state : 'N/A'}`);
+                        } else {
+                            addTestResult('Service Worker', 'fail', 'Service Worker is not registered');
+                        }
+                    })
+                    .catch(error => {
+                        addTestResult('Service Worker', 'fail', `Error checking Service Worker: ${error.message}`);
+                    });
+            } else {
+                addTestResult('Service Worker', 'fail', 'Service Worker is not supported in this browser');
+            }
+        }
+        
+        function checkIcons() {
+            const icons = ['icon-192.png', 'icon-512.png'];
+            let allIconsExist = true;
+            let details = '';
+            
+            icons.forEach(icon => {
+                fetch(icon)
+                    .then(response => {
+                        if (response.ok) {
+                            details += `✅ ${icon} - موجود\n`;
+                        } else {
+                            details += `❌ ${icon} - غير موجود\n`;
+                            allIconsExist = false;
+                        }
+                    })
+                    .catch(error => {
+                        details += `❌ ${icon} - خطأ: ${error.message}\n`;
+                        allIconsExist = false;
+                    });
+            });
+            
+            setTimeout(() => {
+                addTestResult('الأيقونات', allIconsExist ? 'pass' : 'fail', details);
+            }, 1000);
+        }
+        
+        function checkHTTPS() {
+            const isHTTPS = location.protocol === 'https:' || location.hostname === 'localhost';
+            addTestResult('HTTPS', isHTTPS ? 'pass' : 'warning', 
+                `Protocol: ${location.protocol}\nHostname: ${location.hostname}\n${isHTTPS ? 'HTTPS is available' : 'HTTPS is required for PWA'}`);
+        }
+        
+        function checkPWAInstallability() {
+            if ('serviceWorker' in navigator && 'PushManager' in window) {
+                addTestResult('PWA Installability', 'pass', 'Browser supports PWA installation');
+            } else {
+                addTestResult('PWA Installability', 'warning', 'Browser has limited PWA support');
+            }
+        }
+        
+        function runAllTests() {
+            testResults = [];
+            checkManifest();
+            checkServiceWorker();
+            checkIcons();
+            checkHTTPS();
+            checkPWAInstallability();
+        }
+        
+        function installPWA() {
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        alert('✅ Service Worker تم تسجيله بنجاح!');
+                        console.log('Service Worker registered:', registration);
+                    })
+                    .catch(error => {
+                        alert('❌ فشل في تسجيل Service Worker: ' + error.message);
+                        console.error('Service Worker registration failed:', error);
+                    });
+            } else {
+                alert('❌ Service Worker غير مدعوم في هذا المتصفح');
+            }
+        }
+        
+        function clearCache() {
+            if ('caches' in window) {
+                caches.keys().then(cacheNames => {
+                    return Promise.all(
+                        cacheNames.map(cacheName => {
+                            return caches.delete(cacheName);
+                        })
+                    );
+                }).then(() => {
+                    alert('✅ تم مسح جميع الـ Cache بنجاح!');
+                    location.reload();
+                }).catch(error => {
+                    alert('❌ فشل في مسح Cache: ' + error.message);
+                });
+            } else {
+                alert('❌ Cache API غير مدعوم في هذا المتصفح');
+            }
+        }
+        
+        // تشغيل الاختبارات تلقائياً عند تحميل الصفحة
+        window.addEventListener('load', () => {
+            setTimeout(runAllTests, 500);
+        });
+    </script>
+</body>
+</html>

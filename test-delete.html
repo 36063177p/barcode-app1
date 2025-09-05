@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>اختبار وظيفة الحذف</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+            direction: rtl;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #e3f2fd; color: #0d47a1; border: 1px solid #2196f3; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        .danger { background: #dc3545; }
+        .danger:hover { background: #c82333; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { padding: 10px; border: 1px solid #ddd; text-align: right; }
+        th { background: #f8f9fa; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗑️ اختبار وظيفة حذف الجلسات</h1>
+        
+        <div class="info">
+            <h3>📋 ما سيتم اختباره:</h3>
+            <ul>
+                <li>إنشاء جلسة تجريبية</li>
+                <li>إضافة باركودات تجريبية</li>
+                <li>اختبار حذف الجلسة</li>
+                <li>التحقق من الحذف الفعلي</li>
+            </ul>
+        </div>
+
+        <div style="text-align: center; margin: 20px 0;">
+            <button onclick="createTestSession()">➕ إنشاء جلسة تجريبية</button>
+            <button onclick="listAllSessions()">📋 عرض جميع الجلسات</button>
+            <button onclick="testDeleteFunction()">🗑️ اختبار الحذف</button>
+            <button onclick="clearResults()">🧹 مسح النتائج</button>
+        </div>
+
+        <div id="sessions-list"></div>
+        <div id="results"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // نفس إعدادات التطبيق
+        const SUPABASE_URL = 'https://oowacnfvdvnzwrosfgyy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9vd2FjbmZ2ZHZuendyb3NmZ3l5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTcwOTkyODgsImV4cCI6MjA3MjY3NTI4OH0.gt48e3zWhMHjrn3SGqYbi_CcasVZkyITY_Dh7KXxttw';
+        
+        let supabase;
+        let results = [];
+        let testSessionId = null;
+
+        // تهيئة Supabase
+        try {
+            supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('✅ تم تهيئة Supabase');
+        } catch (error) {
+            console.error('❌ خطأ في تهيئة Supabase:', error);
+        }
+
+        function addResult(message, type = 'info') {
+            results.push({ 
+                message, 
+                type, 
+                timestamp: new Date().toLocaleTimeString('ar-SA') 
+            });
+            displayResults();
+        }
+
+        function displayResults() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = results.map(result => 
+                `<div class="test-result ${result.type}">
+                    <strong>[${result.timestamp}]</strong> ${result.message}
+                </div>`
+            ).join('');
+            resultsDiv.scrollTop = resultsDiv.scrollHeight;
+        }
+
+        function clearResults() {
+            results = [];
+            displayResults();
+        }
+
+        async function createTestSession() {
+            try {
+                addResult('➕ إنشاء جلسة تجريبية...', 'info');
+                
+                const sessionData = {
+                    user_id: 'test_user',
+                    client_name: 'عميل تجريبي للحذف',
+                    start_time: new Date().toISOString(),
+                    total_barcodes: 0,
+                    success_count: 0,
+                    error_count: 0
+                };
+
+                const { data, error } = await supabase
+                    .from('sessions')
+                    .insert(sessionData)
+                    .select()
+                    .single();
+
+                if (error) throw error;
+                
+                testSessionId = data.id;
+                addResult(`✅ تم إنشاء جلسة تجريبية - ID: ${data.id}`, 'success');
+                
+                // إضافة بعض الباركودات التجريبية
+                await addTestBarcodes(data.id);
+                
+                // تحديث قائمة الجلسات
+                await listAllSessions();
+                
+            } catch (error) {
+                addResult(`❌ فشل في إنشاء الجلسة: ${error.message}`, 'error');
+                console.error('Error creating test session:', error);
+            }
+        }
+
+        async function addTestBarcodes(sessionId) {
+            try {
+                const barcodes = [
+                    { barcode_value: '1111111111111', is_valid: true },
+                    { barcode_value: '2222222222222', is_valid: true },
+                    { barcode_value: 'INVALID123', is_valid: false }
+                ];
+
+                for (const barcode of barcodes) {
+                    const barcodeData = {
+                        session_id: sessionId,
+                        barcode_value: barcode.barcode_value,
+                        scan_time: new Date().toISOString(),
+                        is_valid: barcode.is_valid,
+                        error_message: barcode.is_valid ? null : 'باركود تجريبي خاطئ'
+                    };
+
+                    const { error } = await supabase
+                        .from('barcodes')
+                        .insert(barcodeData);
+
+                    if (error) throw error;
+                }
+                
+                addResult(`✅ تم إضافة ${barcodes.length} باركود تجريبي`, 'success');
+                
+            } catch (error) {
+                addResult(`❌ فشل في إضافة الباركودات: ${error.message}`, 'error');
+            }
+        }
+
+        async function listAllSessions() {
+            try {
+                const { data: sessions, error } = await supabase
+                    .from('sessions')
+                    .select('*')
+                    .order('start_time', { ascending: false })
+                    .limit(10);
+
+                if (error) throw error;
+
+                const sessionsList = document.getElementById('sessions-list');
+                
+                if (sessions.length === 0) {
+                    sessionsList.innerHTML = '<p>لا توجد جلسات</p>';
+                    return;
+                }
+
+                sessionsList.innerHTML = `
+                    <h3>📋 الجلسات الموجودة:</h3>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>اسم العميل</th>
+                                <th>التاريخ</th>
+                                <th>الباركودات</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sessions.map(session => `
+                                <tr>
+                                    <td>${session.id}</td>
+                                    <td>${session.client_name || 'غير محدد'}</td>
+                                    <td>${new Date(session.start_time).toLocaleString('ar-SA')}</td>
+                                    <td>${session.total_barcodes || 0}</td>
+                                    <td>
+                                        <button onclick="testDeleteSpecific(${session.id}, '${session.client_name}')" class="danger">🗑️ حذف</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+
+                addResult(`📋 تم العثور على ${sessions.length} جلسة`, 'info');
+
+            } catch (error) {
+                addResult(`❌ فشل في تحميل الجلسات: ${error.message}`, 'error');
+            }
+        }
+
+        async function testDeleteSpecific(sessionId, clientName) {
+            if (!confirm(`هل تريد حذف الجلسة ${sessionId} - ${clientName}؟`)) {
+                return;
+            }
+
+            try {
+                addResult(`🗑️ بدء حذف الجلسة ${sessionId}...`, 'info');
+                
+                // أولاً، عد الباركودات المرتبطة
+                const { data: barcodes, error: countError } = await supabase
+                    .from('barcodes')
+                    .select('id')
+                    .eq('session_id', sessionId);
+
+                if (countError) {
+                    addResult(`⚠️ خطأ في عد الباركودات: ${countError.message}`, 'warning');
+                } else {
+                    addResult(`📊 الجلسة تحتوي على ${barcodes?.length || 0} باركود`, 'info');
+                }
+
+                // تنفيذ الحذف
+                const { data: deletedData, error: deleteError } = await supabase
+                    .from('sessions')
+                    .delete()
+                    .eq('id', sessionId)
+                    .select();
+
+                if (deleteError) {
+                    addResult(`❌ فشل الحذف: ${deleteError.message}`, 'error');
+                    console.error('Delete error details:', deleteError);
+                    return;
+                }
+
+                if (deletedData && deletedData.length > 0) {
+                    addResult(`✅ تم حذف الجلسة ${sessionId} بنجاح`, 'success');
+                    addResult(`📊 تم حذف ${deletedData.length} سجل من جدول sessions`, 'success');
+                } else {
+                    addResult(`⚠️ لم يتم حذف أي سجلات - الجلسة قد تكون محذوفة مسبقاً`, 'warning');
+                }
+
+                // التحقق من الحذف الفعلي
+                const { data: checkData, error: checkError } = await supabase
+                    .from('sessions')
+                    .select('id')
+                    .eq('id', sessionId);
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    addResult(`❌ خطأ في التحقق: ${checkError.message}`, 'error');
+                } else if (checkData && checkData.length === 0) {
+                    addResult(`✅ تأكيد: الجلسة ${sessionId} لم تعد موجودة في قاعدة البيانات`, 'success');
+                } else {
+                    addResult(`⚠️ تحذير: الجلسة ${sessionId} ما زالت موجودة!`, 'warning');
+                }
+
+                // تحديث القائمة
+                await listAllSessions();
+
+            } catch (error) {
+                addResult(`❌ خطأ عام في الحذف: ${error.message}`, 'error');
+                console.error('Delete test error:', error);
+            }
+        }
+
+        async function testDeleteFunction() {
+            if (!testSessionId) {
+                addResult('❌ لا توجد جلسة تجريبية - أنشئ جلسة أولاً', 'error');
+                return;
+            }
+
+            await testDeleteSpecific(testSessionId, 'عميل تجريبي للحذف');
+        }
+
+        // تحميل القائمة عند بدء التشغيل
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                listAllSessions();
+                addResult('📝 جاهز للاختبار - أنشئ جلسة تجريبية ثم اختبر الحذف', 'info');
+            }, 500);
+        });
+    </script>
+</body>
+</html>

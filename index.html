@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إدارة جلسات الباركود</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            direction: rtl;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* نظام التبويبات */
+        .tabs-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .tabs-nav {
+            display: flex;
+            justify-content: space-around;
+            padding: 0;
+            margin: 0;
+            list-style: none;
+            background: transparent;
+        }
+
+        .tab-item {
+            flex: 1;
+            text-align: center;
+        }
+
+        .tab-link {
+            display: block;
+            padding: 15px 10px;
+            text-decoration: none;
+            color: #666;
+            font-weight: 600;
+            font-size: 14px;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .tab-link.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .tab-link:hover {
+            color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .tab-icon {
+            display: block;
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+
+        .tab-text {
+            font-size: 12px;
+            display: block;
+        }
+
+        /* المحتوى الرئيسي */
+        .main-wrapper {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+        }
+
+        .tab-content {
+            display: none;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-card.error {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);
+        }
+
+        .stat-card.success {
+            background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .session-controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            min-height: 48px;
+            min-width: 120px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn-large {
+            padding: 20px 32px;
+            font-size: 18px;
+            min-height: 56px;
+            border-radius: 16px;
+        }
+
+        .btn-small {
+            padding: 12px 16px;
+            font-size: 14px;
+            min-height: 40px;
+            min-width: 80px;
+        }
+
+        .btn-icon-only {
+            min-width: 48px;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            padding: 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        /* تحسينات إضافية للمس */
+        .tap-highlight {
+            -webkit-tap-highlight-color: rgba(102, 126, 234, 0.3);
+        }
+
+        .touch-friendly {
+            min-height: 44px;
+            min-width: 44px;
+        }
+
+        /* تحسين المدخلات للمحمول */
+        .barcode-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 18px;
+            border: 2px solid #e1e5e9;
+            border-radius: 12px;
+            font-size: 16px;
+            transition: border-color 0.3s ease;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+
+        .barcode-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        /* تحسين النوافذ المنبثقة للمحمول */
+        .modal-content {
+            background-color: white;
+            margin: 10% auto;
+            padding: 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 400px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .barcode-section {
+            margin-bottom: 30px;
+        }
+
+        .barcode-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .barcode-input {
+            flex: 1;
+            min-width: 250px;
+            padding: 15px;
+            border: 2px solid #e1e5e9;
+            border-radius: 8px;
+            font-size: 1.1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .barcode-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .scanner-container {
+            margin-bottom: 20px;
+        }
+
+        #video {
+            width: 100%;
+            max-width: 400px;
+            height: 300px;
+            border-radius: 8px;
+            background: #000;
+        }
+
+        .session-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .session-info h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+
+        .session-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .session-item {
+            background: white;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .session-item:hover {
+            transform: translateX(-5px);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            background-color: white;
+            margin: 15% auto;
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 500px;
+            text-align: center;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .modal-error {
+            color: #dc3545;
+            font-size: 1.2em;
+            margin-bottom: 20px;
+        }
+
+        .close {
+            color: #aaa;
+            float: left;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #000;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+
+        /* تحسينات الأجهزة المحمولة */
+        .mobile-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            margin: 10px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .mobile-section {
+            margin-bottom: 20px;
+        }
+
+        .mobile-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 20px 10px;
+        }
+
+        .mobile-header h1 {
+            font-size: 24px;
+            margin-bottom: 10px;
+            color: white;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .mobile-header .subtitle {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+        }
+
+        /* تحسينات الإحصائيات للمحمول */
+        .stats-mobile {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card-mobile {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        /* أزرار الإجراءات السريعة */
+        .quick-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .quick-action-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            border: none;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+            min-height: 100px;
+        }
+
+        .quick-action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .quick-action-btn .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+
+        .quick-action-btn .text {
+            font-size: 14px;
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .main-wrapper {
+                padding: 5px;
+            }
+
+            .mobile-card {
+                margin: 5px;
+                padding: 15px;
+            }
+
+            .stats-mobile {
+                grid-template-columns: 1fr;
+            }
+
+            .quick-actions {
+                grid-template-columns: 1fr;
+            }
+
+            .barcode-input-group {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .barcode-input {
+                min-width: 100%;
+                font-size: 16px;
+                padding: 16px;
+            }
+
+            .btn {
+                width: 100%;
+                margin-bottom: 10px;
+            }
+
+            .modal-content {
+                margin: 5% auto;
+                width: 95%;
+                max-width: 400px;
+            }
+
+            #video {
+                width: 100%;
+                max-width: 300px;
+                height: 225px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .tab-text {
+                display: none;
+            }
+
+            .tab-icon {
+                font-size: 24px;
+                margin-bottom: 0;
+            }
+
+            .mobile-header h1 {
+                font-size: 20px;
+            }
+
+            .stats-mobile {
+                gap: 8px;
+            }
+
+            .stat-card-mobile {
+                padding: 12px;
+                min-height: 70px;
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .reports-section {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e9ecef;
+        }
+
+        .export-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <h1>🔍 إدارة جلسات الباركود</h1>
+            <div class="subtitle">نظام متكامل لقراءة وإدارة الباركود</div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="tabs-container">
+            <ul class="tabs-nav">
+                <li class="tab-item">
+                    <a href="#" class="tab-link active" onclick="showTab('home')">
+                        <span class="tab-icon">🏠</span>
+                        <span class="tab-text">الرئيسية</span>
+                    </a>
+                </li>
+                <li class="tab-item">
+                    <a href="#" class="tab-link" onclick="showTab('scan')">
+                        <span class="tab-icon">📷</span>
+                        <span class="tab-text">المسح</span>
+                    </a>
+                </li>
+                <li class="tab-item">
+                    <a href="#" class="tab-link" onclick="showTab('sessions')">
+                        <span class="tab-icon">📋</span>
+                        <span class="tab-text">الجلسات</span>
+                    </a>
+                </li>
+                <li class="tab-item">
+                    <a href="#" class="tab-link" onclick="showTab('reports')">
+                        <span class="tab-icon">📊</span>
+                        <span class="tab-text">التقارير</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content Wrapper -->
+        <div class="main-wrapper">
+            <!-- Home Tab -->
+            <div id="homeTab" class="tab-content active">
+                <div class="mobile-card">
+                    <div class="stats-mobile">
+                        <div class="stat-card-mobile success">
+                            <div class="stat-number" id="successCount">0</div>
+                            <div class="stat-label">باركود صحيح</div>
+                        </div>
+                        <div class="stat-card-mobile error">
+                            <div class="stat-number" id="errorCount">0</div>
+                            <div class="stat-label">أخطاء</div>
+                        </div>
+                        <div class="stat-card-mobile">
+                            <div class="stat-number" id="totalCount">0</div>
+                            <div class="stat-label">إجمالي المحاولات</div>
+                        </div>
+                        <div class="stat-card-mobile" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                            <div class="stat-number" id="activeSessionCount">0</div>
+                            <div class="stat-label">الجلسة النشطة</div>
+                        </div>
+                    </div>
+
+                    <div class="quick-actions">
+                        <button class="quick-action-btn" onclick="showNewSessionDialog()">
+                            <span class="icon">🚀</span>
+                            <span class="text">بدء جلسة جديدة</span>
+                        </button>
+                        <button class="quick-action-btn" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);" onclick="showTab('scan')">
+                            <span class="icon">📱</span>
+                            <span class="text">مسح باركود</span>
+                        </button>
+                        <button class="quick-action-btn" style="background: linear-gradient(135deg, #51cf66 0%, #40c057 100%);" onclick="showTab('sessions')">
+                            <span class="icon">📋</span>
+                            <span class="text">الجلسات السابقة</span>
+                        </button>
+                        <button class="quick-action-btn" style="background: linear-gradient(135deg, #ff6b6b 0%, #ee5a52 100%);" onclick="showTab('reports')">
+                            <span class="icon">📊</span>
+                            <span class="text">التقارير والتصدير</span>
+                        </button>
+                    </div>
+
+                    <!-- Current Session Info -->
+                    <div id="currentSessionInfo" class="session-info hidden">
+                        <h3>الجلسة الحالية</h3>
+                        <p><strong>اسم العميل:</strong> <span id="currentClientName"></span></p>
+                        <p><strong>رقم الجلسة:</strong> <span id="currentSessionId"></span></p>
+                        <p><strong>وقت البدء:</strong> <span id="sessionStartTime"></span></p>
+                        <p><strong>عدد الباركودات:</strong> <span id="sessionBarcodeCount">0</span></p>
+                        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button class="btn btn-secondary btn-small" onclick="editSession()">✏️ تعديل</button>
+                            <button class="btn btn-primary btn-small" onclick="endSession()">⏹️ إنهاء</button>
+                            <button class="btn btn-success btn-small" onclick="showTab('scan')">📱 مسح باركود</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Scan Tab -->
+            <div id="scanTab" class="tab-content">
+                <div class="mobile-card">
+                    <h3 style="text-align: center; margin-bottom: 20px;">📱 قراءة الباركود</h3>
+                    
+                    <div id="noActiveSession" class="error-message" style="text-align: center; margin-bottom: 20px;">
+                        ⚠️ لا توجد جلسة نشطة. يرجى بدء جلسة جديدة أولاً.
+                        <br><br>
+                        <button class="btn btn-primary" onclick="showNewSessionDialog()">🚀 بدء جلسة جديدة</button>
+                    </div>
+
+                    <div id="activeScanSection" class="hidden">
+                        <!-- Manual Input -->
+                        <div class="mobile-section">
+                            <h4>✍️ إدخال يدوي</h4>
+                            <div class="barcode-input-group">
+                                <input type="text" id="barcodeInput" class="barcode-input" placeholder="أدخل الباركود هنا" autofocus>
+                                <button class="btn btn-primary btn-large" onclick="processBarcodeInput()">✅ تأكيد</button>
+                            </div>
+                        </div>
+
+                        <!-- Camera Scanner -->
+                        <div class="mobile-section">
+                            <h4>📷 الماسح الضوئي</h4>
+                            <div style="text-align: center;">
+                                <button class="btn btn-secondary btn-large" onclick="toggleScanner()" id="scannerToggle">📷 تشغيل الماسح</button>
+                                <video id="video" class="hidden" style="margin-top: 15px;" autoplay playsinline></video>
+                                <canvas id="canvas" style="display: none;"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sessions Tab -->
+            <div id="sessionsTab" class="tab-content">
+                <div class="mobile-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>📋 الجلسات السابقة</h3>
+                        <button class="btn btn-primary btn-small" onclick="loadPreviousSessions()">🔄 تحديث</button>
+                    </div>
+                    <div id="sessionsList" class="session-list"></div>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reportsTab" class="tab-content">
+                <div class="mobile-card">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h3>📊 التقارير والتصدير</h3>
+                        <div>
+                            <button class="btn btn-success btn-small" onclick="exportToCSV()">📄 CSV</button>
+                            <button class="btn btn-primary btn-small" onclick="exportToExcel()">📊 Excel</button>
+                        </div>
+                    </div>
+                    <div id="reportContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Overlay -->
+        <div id="loading" class="loading" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(255, 255, 255, 0.9); z-index: 9999;">
+            <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center;">
+                <div class="spinner"></div>
+                <p style="margin-top: 15px; font-weight: 600; color: #667eea;">جاري التحميل...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Modal -->
+    <div id="errorModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeErrorModal()">&times;</span>
+            <h2 style="color: #dc3545; margin-bottom: 20px;">❌ خطأ في الباركود</h2>
+            <div id="errorMessage" class="modal-error"></div>
+            <button class="btn btn-primary" onclick="closeErrorModal()">🔄 إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <!-- New Session Modal -->
+    <div id="newSessionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeNewSessionModal()">&times;</span>
+            <h2 style="color: #667eea; margin-bottom: 20px;">🚀 بدء جلسة جديدة</h2>
+            <div style="margin-bottom: 20px;">
+                <label for="clientNameInput" style="display: block; margin-bottom: 8px; font-weight: bold;">اسم العميل:</label>
+                <input type="text" id="clientNameInput" class="barcode-input" placeholder="أدخل اسم العميل" required>
+            </div>
+            <div style="text-align: center;">
+                <button class="btn btn-secondary" onclick="closeNewSessionModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="createNewSession()">🚀 بدء الجلسة</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Session Modal -->
+    <div id="editSessionModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditSessionModal()">&times;</span>
+            <h2 style="color: #667eea; margin-bottom: 20px;">✏️ تعديل الجلسة</h2>
+            <div style="margin-bottom: 20px;">
+                <label for="editClientNameInput" style="display: block; margin-bottom: 8px; font-weight: bold;">اسم العميل:</label>
+                <input type="text" id="editClientNameInput" class="barcode-input" placeholder="أدخل اسم العميل" required>
+            </div>
+            <div style="text-align: center;">
+                <button class="btn btn-secondary" onclick="closeEditSessionModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="saveSessionEdit()">💾 حفظ التغييرات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Barcode Modal -->
+    <div id="editBarcodeModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeEditBarcodeModal()">&times;</span>
+            <h2 style="color: #667eea; margin-bottom: 20px;">✏️ تعديل الباركود</h2>
+            <input type="hidden" id="editBarcodeId">
+            <div style="margin-bottom: 20px;">
+                <label for="editBarcodeValue" style="display: block; margin-bottom: 8px; font-weight: bold;">قيمة الباركود:</label>
+                <input type="text" id="editBarcodeValue" class="barcode-input" placeholder="أدخل الباركود" required>
+            </div>
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; font-weight: bold;">حالة الباركود:</label>
+                <select id="editBarcodeStatus" class="barcode-input">
+                    <option value="true">صحيح ✅</option>
+                    <option value="false">خاطئ ❌</option>
+                </select>
+            </div>
+            <div style="text-align: center;">
+                <button class="btn btn-secondary" onclick="closeEditBarcodeModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="saveBarcodeEdit()">💾 حفظ التغييرات</button>
+                <button class="btn" style="background: #dc3545; color: white;" onclick="deleteBarcode()">🗑️ حذف</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Message -->
+    <div id="successMessage" class="success-message hidden">
+        ✅ تم تسجيل الباركود بنجاح!
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="app.js"></script>
+    
+    <!-- PWA Registration -->
+    <script>
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered successfully:', registration);
+                        
+                        // Check for updates
+                        registration.addEventListener('updatefound', () => {
+                            console.log('🔄 Service Worker update found');
+                        });
+                    })
+                    .catch(registrationError => {
+                        console.warn('⚠️ Service Worker registration failed:', registrationError);
+                        // Don't show error to user as app will still work
+                    });
+            });
+        } else if (window.location.protocol === 'file:') {
+            console.log('📝 Service Worker disabled in file:// protocol. Use a local server for full PWA features.');
+        }
+    </script>
+</body>
+</html>
